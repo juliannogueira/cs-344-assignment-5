@@ -68,3 +68,33 @@ int string_to_integer(char *string) {
     }
     return result;
 }
+
+/*
+ * Prompt the user for input.
+ *
+ * Display the prompt, then get size characters from the user.
+ * 
+ * The newline character or last character, whichever comes first, will be
+ * converted to a null-terminator.
+ */
+void get_user_input(char *prompt, char *buffer, int size) {
+    printf("%s", prompt);
+    fflush(stdout);
+    fgets(buffer, size, stdin);
+    for (int i = 0; i < size; i++) {
+        if (*(buffer + i) == '\n' || i == size - 1) {
+            *(buffer + i) = '\0';
+            break;
+        }
+    }
+}
+
+/*
+ * Write an error message to stderr, and exit with the specified status.
+ */
+void error(char *message, int status) {
+    fprintf(stderr,"%s", message);
+    if (status >= 0) {
+        exit(status);
+    }
+}

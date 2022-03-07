@@ -13,4 +13,8 @@ int string_length(char *string);
 
 int string_to_integer(char *string);
 
+void get_user_input(char *prompt, char *buffer, int size);
+
+void error(char *message, int status);
+
 #endif
