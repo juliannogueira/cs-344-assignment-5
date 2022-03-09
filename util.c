@@ -1,6 +1,16 @@
 #include "util.h"
 
 /*
+ * Write an error message to stderr, and exit with the specified status.
+ */
+void error(char *message, int status) {
+    fprintf(stderr,"%s", message);
+    if (status >= 0) {
+        exit(status);
+    }
+}
+
+/*
  * Raise an operand to a specified power.
  */
 int raise_to_power(int operand, int power) {
@@ -28,14 +38,39 @@ int random_integer(int max) {
 }
 
 /*
- * Get the size of a null-terminated character array.
+ * Convert an integer to a null-terminated character array.
+ *
+ * Update the dynamically allocated character array.
  */
-int string_length(char *str) {
+void integer_to_string(int num, char *string) {
     int index = 0;
-    while (*(str + index) != '\0') {
-        index++;
+    int is_negative = 0;
+    char temp = 0;
+
+    if (num < 0) {
+        is_negative = 1;
+        num *= -1;
     }
-    return index;
+
+    while (num != 0) {
+        index++;
+        *(string + index - 1) = (num % 10) + 48;
+        num /= 10;
+    }
+
+    if (is_negative) {
+        index++;
+        *(string + index - 1) = '-';
+    }
+
+    for (int i = 0; i < index / 2; i++) {
+        temp = *(string + i);
+        *(string + i) = *(string + index - 1 - i);
+        *(string + index - 1 - i) = temp;
+    }
+
+    index++;
+    *(string + index - 1) = '\0';
 }
 
 /*
@@ -70,6 +105,35 @@ int string_to_integer(char *string) {
 }
 
 /*
+ * Get the size of a null-terminated character array.
+ */
+int string_length(char *str) {
+    int index = 0;
+    while (*(str + index) != '\0') {
+        index++;
+    }
+    return index;
+}
+
+/*
+ * Reallocate a buffer of a specified length to hold count extra characters.
+ *
+ * The string is null-terminated.
+ */
+char *reallocate_string(char *buffer, int length, int count) {
+    char temp[length];
+    for (int i = 0; i < length; i++) {
+        temp[i] = *(buffer + i);
+    }
+    buffer = realloc(buffer, sizeof(char) * (length + count));
+    for (int i = 0; i < length; i++) {
+        *(buffer + i) = temp[i];
+    }
+    *(buffer + length) = '\0';
+    return buffer;
+}
+
+/*
  * Prompt the user for input.
  *
  * Display the prompt, then get size characters from the user.
@@ -90,11 +154,42 @@ void get_user_input(char *prompt, char *buffer, int size) {
 }
 
 /*
- * Write an error message to stderr, and exit with the specified status.
+ * Send data to a socket.
  */
-void error(char *message, int status) {
-    fprintf(stderr,"%s", message);
-    if (status >= 0) {
-        exit(status);
+void send_data(int socket, char *buffer, int count) {
+    int is_sending = 1;
+    int index = 0;
+
+    while (is_sending) {
+        index += send(socket, buffer + index, count - index, 0);
+
+        if (count < index) {
+            printf("Client: not all data written\n");
+        } else if (index == count) {
+            is_sending = 0;
+        } else if (index < 0) {
+            error("Error: could not write to socket\n", 2);
+        }
+    }
+}
+
+/*
+ * Receive data from a socket.
+ */
+void receive_data(int socket, char *buffer, int count) {
+    int is_receiving = 1;
+    int index = 0;
+
+    while (is_receiving) {
+        index += recv(socket, buffer + index, count - index, 0);
+
+        if (index < count) {
+            printf("Client: not all data received\n");
+        } else if (index == count) {
+            *(buffer + index) = '\0';
+            is_receiving = 0;
+        } else if (index < 0) {
+            error("Error: could not read from socket\n", 2);
+        }
     }
 }
