@@ -38,17 +38,17 @@ void free_server(struct Server *server) {
  * Initialize the client struct.
  */
 void init_client(struct Client *client) {
-    client->BUFFER_SIZE = 10;
     client->socket = -1;
     client->recv_length = 0;
     client->send_length = 0;
+    client->data_length = 0;
     client->index = 0;
-    client->message_length_int = 0;
-    client->buffer = malloc(sizeof(char) * client->BUFFER_SIZE);
-    client->message_length_str = malloc(sizeof(char));
+    client->buffer = malloc(sizeof(char) * 256);
+    client->data_length_str = malloc(sizeof(char) * 16);
     client->address = malloc(sizeof(struct sockaddr_in));
     client->size = sizeof(*(client->address));
-    *(client->message_length_str + 0) = '\0';
+    memset(client->buffer, '\0', 256);
+    memset(client->data_length_str, '\0', 16);
 }
 
 /*
@@ -57,7 +57,7 @@ void init_client(struct Client *client) {
  */
 void free_client(struct Client *client) {
     free(client->buffer);
-    free(client->message_length_str);
+    free(client->data_length_str);
     free(client->address);
     free(client);
 }
@@ -107,7 +107,6 @@ void run_server(int port) {
             error("Error: could not accept the connection request\n", -1);
         } else {
             process_request(client);
-            // break;
         } 
     }
 
@@ -118,18 +117,15 @@ void run_server(int port) {
 
 /*
  * Process a client request to the server.
+ *
+ * The first receive is always the length of the incoming data.
  */
 void process_request(struct Client *client) {
-    char ch = '\0';
-
     printf("Server: connected to client running at host %d port %d\n",\
     ntohs(client->address->sin_addr.s_addr),\
     ntohs(client->address->sin_port));
 
-    memset(client->buffer, '\0', client->BUFFER_SIZE);
-
-    client->recv_length = recv(client->socket, client->buffer,\
-    client->BUFFER_SIZE, 0); 
+    client->recv_length = recv(client->socket, client->data_length_str, 16, 0);
 
     if (client->recv_length < 0) {
         error("Error: could not read from socket\n", -1);
@@ -137,34 +133,66 @@ void process_request(struct Client *client) {
         printf("Length: %d\n", client->recv_length);
     }
 
-    for (int i = 0; i < client->recv_length; i++) {
-        client->index = i;
+    printf("data length string: %s\n", client->data_length_str);
 
-        ch = *(client->buffer + i);
+    client->data_length = string_to_integer(client->data_length_str) * 2;
 
-        if (ch >= 48 && ch <= 57) {
-            client->message_length_str = realloc(client->message_length_str,\
-            sizeof(char) * (i + 2));
-            *(client->message_length_str + i) = ch;
-        } else {
-            *(client->message_length_str + i) = '\0';
-            break;
-        }
-    }
+    printf("Received: %d\n", client->data_length);
 
-    client->message_length_int = string_to_integer(client->message_length_str);
+    client->buffer = realloc(client->buffer, client->data_length + 1);
 
-    printf("%s -> %d\n", client->message_length_str,\
-    client->message_length_int);
+    receive_data(client->socket, client->buffer, client->data_length);
 
-    client->send_length = send(client->socket, client->message_length_str,\
-    string_length(client->message_length_str), 0);
+    printf("Received: %s\n", client->buffer);
 
-    if (client->send_length < 0){
-        error("Error: could not write to socket\n", -1);
-    }
+    encrypt_data(client);
+
+    send_data(client->socket, client->buffer, client->data_length / 2);
 
     close(client->socket);
 
     free_client(client);
+}
+
+/*
+ * Encrypt the data in the client buffer using the passed key.
+ */
+void encrypt_data(struct Client *client) {
+    int length = client->data_length / 2;
+    int data_ch = 0;
+    int key_ch = 0;
+    int enc_ch = 0;
+    char ch = '\0';
+    for (int i = 0; i < length; i++) {
+        data_ch = *(client->buffer + i);
+        key_ch = *(client->buffer + length + i);
+
+        // printf("data_ch1: %d ", data_ch);
+        // printf("key_ch1: %d ", key_ch);
+
+        if (data_ch == 32) {
+            data_ch = 91;
+        }
+
+        if (key_ch == 32) {
+            key_ch = 91;
+        }
+
+        data_ch -= 65;
+        key_ch -= 65;
+        enc_ch = ((data_ch + key_ch) % 27) + 65;
+
+        if (enc_ch == 91) {
+            enc_ch = 32;
+        }
+
+        ch = enc_ch;
+
+        *(client->buffer + i) = enc_ch;
+
+        // printf("data_ch2: %d ", data_ch);
+        // printf("key_ch2: %d ", key_ch);
+        // printf("enc_ch: %d ", enc_ch);
+        // printf("ch: %c\n", ch);
+    }
 }

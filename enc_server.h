@@ -21,14 +21,13 @@ struct Server {
 };
 
 struct Client {
-    int BUFFER_SIZE;
     int socket;
     int recv_length;
     int send_length;
+    int data_length;
     int index;
-    int message_length_int;
     char *buffer;
-    char *message_length_str;
+    char *data_length_str;
     struct sockaddr_in *address;
     socklen_t size;
 };
@@ -46,5 +45,7 @@ void init_address(struct sockaddr_in* address, int port);
 void run_server(int port); 
 
 void process_request(struct Client *client);
+
+void encrypt_data(struct Client *client);
 
 #endif
