@@ -42,4 +42,4 @@ util.o: util.h util.c
 	$(CC) $(CFLAGS) -c util.c
 
 clean:
-	rm -f *.o $(ENC_SERVER) $(ENC_CLIENT) $(DEC_SERVER) $(KEYGEN)
+	rm -f *.o $(ENC_SERVER) $(ENC_CLIENT) $(DEC_SERVER) $(DEC_CLIENT) $(KEYGEN)
