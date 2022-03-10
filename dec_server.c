@@ -43,6 +43,7 @@ void init_client(struct Client *client) {
     client->send_length = 0;
     client->data_length = 0;
     client->index = 0;
+    client->token = malloc(sizeof(char));
     client->buffer = malloc(sizeof(char) * 256);
     client->data_length_str = malloc(sizeof(char) * 16);
     client->address = malloc(sizeof(struct sockaddr_in));
@@ -56,6 +57,7 @@ void init_client(struct Client *client) {
  * struct, itself.
  */
 void free_client(struct Client *client) {
+    free(client->token);
     free(client->buffer);
     free(client->data_length_str);
     free(client->address);
@@ -106,7 +108,38 @@ void run_server(int port) {
         if (client->socket < 0) {
             error("Error: could not accept the connection request\n", -1);
         } else {
-            process_request(client);
+            client->recv_length = recv(client->socket, client->token, 1, 0);
+
+            if (client->recv_length < 0) {
+                error("Error: could not read from socket\n", -1);
+            }
+
+            if (*(client->token) == 'd') {
+                *(client->token) = '1';
+
+                send(client->socket, client->token, 1, 0);
+
+                pid_t pid = fork();
+
+                switch (pid) {
+                    case -1:
+                        error("Error: fork failed", 2);
+                        break;
+                    case 0:
+                        process_request(client);
+                        close(client->socket);
+                        free_client(client);
+                        break;
+                    default:
+                        break;
+                }
+            } else {
+                *(client->token) = '0';
+
+                send(client->socket, client->token, 1, 0);
+
+                free_client(client);
+            }
         } 
     }
 
@@ -129,8 +162,6 @@ void process_request(struct Client *client) {
 
     if (client->recv_length < 0) {
         error("Error: could not read from socket\n", -1);
-    } else {
-        printf("Length: %d\n", client->recv_length);
     }
 
     client->data_length = string_to_integer(client->data_length_str) * 2;
@@ -142,10 +173,6 @@ void process_request(struct Client *client) {
     decrypt_data(client);
 
     send_data(client->socket, client->buffer, client->data_length / 2);
-
-    close(client->socket);
-
-    free_client(client);
 }
 
 /*

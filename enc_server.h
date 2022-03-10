@@ -26,6 +26,7 @@ struct Client {
     int send_length;
     int data_length;
     int index;
+    char *token;
     char *buffer;
     char *data_length_str;
     struct sockaddr_in *address;

@@ -163,9 +163,7 @@ void send_data(int socket, char *buffer, int count) {
     while (is_sending) {
         index += send(socket, buffer + index, count - index, 0);
 
-        if (count < index) {
-            printf("Client: not all data written\n");
-        } else if (index == count) {
+        if (index == count) {
             is_sending = 0;
         } else if (index < 0) {
             error("Error: could not write to socket\n", 2);
@@ -183,9 +181,7 @@ void receive_data(int socket, char *buffer, int count) {
     while (is_receiving) {
         index += recv(socket, buffer + index, count - index, 0);
 
-        if (index < count) {
-            printf("Client: not all data received\n");
-        } else if (index == count) {
+        if (index == count) {
             *(buffer + index) = '\0';
             is_receiving = 0;
         } else if (index < 0) {

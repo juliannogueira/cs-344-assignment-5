@@ -36,10 +36,12 @@ void init_client(struct Client *client, int port) {
     client->data_length = 0;
     client->key_length = 0;
     client->index = 0;
+    client->token = malloc(sizeof(char));
     client->buffer = malloc(sizeof(char) * 256);
     client->data_length_str = malloc(sizeof(char) * 16);
     client->server_address = malloc(sizeof(struct sockaddr_in));
     client->server_size = sizeof(*(client->server_address));
+    *(client->token) = 'e';
     memset(client->buffer, '\0', 256);
     memset(client->data_length_str, '\0', 16);
 }
@@ -49,6 +51,7 @@ void init_client(struct Client *client, int port) {
  * struct, itself.
  */
 void free_client(struct Client *client) {
+    free(client->token);
     free(client->buffer);
     free(client->data_length_str);
     free(client->server_address);
@@ -83,13 +86,20 @@ void run_client(char *plaintext, char *key, int port) {
 
     integer_to_string(client->data_length, client->data_length_str);
 
-    send_data(client->socket, client->data_length_str, 16);
-    send_data(client->socket, client->buffer, string_length(client->buffer));
+    send_data(client->socket, client->token, 1);
+    receive_data(client->socket, client->token, 1);
 
-    receive_data(client->socket, client->buffer, client->data_length);
+    if (*(client->token) == '1') {
+        send_data(client->socket, client->data_length_str, 16);
+        send_data(client->socket, client->buffer, string_length(client->buffer));
 
-    write(1, client->buffer, client->data_length);
-    write(1, "\n", 1);
+        receive_data(client->socket, client->buffer, client->data_length);
+
+        write(1, client->buffer, client->data_length);
+        write(1, "\n", 1);
+    } else {
+        error("Error: authentication failed\n", -1);
+    }
 
     close(client->socket);
 
